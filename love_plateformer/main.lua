@@ -1,5 +1,23 @@
 function love.load()
- wf = require "libraries.windfield.windfield"
+  anim8 = require "libraries.anim8.anim8"
+  wf = require "libraries.windfield.windfield"
+  sti = require "libraries.Simple-Tiled-Implementation.sti"
+  cameraFile = require "libraries.hump.camera"
+
+  cam = cameraFile()
+
+  love.window.setMode(1000,768)
+
+  sprites= {}
+  sprites.playerSheet = love.graphics.newImage("sprites/playerSheet.png")
+
+  local grid = anim8.newGrid(614,564,sprites.playerSheet:getWidth(),sprites.playerSheet:getHeight())
+
+  animations = {}
+  -- 1-15 #frames , rowline, time 
+  animations.idle = anim8.newAnimation(grid("1-15",1),.05)
+  animations.run= anim8.newAnimation(grid("1-15",3),.05)
+  animations.jump = anim8.newAnimation(grid("1-7",2),.05)
  -- 0,100 gravity x,y
  world = wf.newWorld(0,800,false)
  world:setQueryDebugDrawing(true)
@@ -8,49 +26,52 @@ function love.load()
  world:addCollisionClass("Player" --[[, {ignores = {"Platform"}} ]])
  world:addCollisionClass("Danger")
 
- player = world:newRectangleCollider(360,100,80,80, {collision_class = "Player"})
- platform = world:newRectangleCollider(250,400,300,100, {collision_class = "Platform"})
+ platforms = {}
  dangerZone = world:newRectangleCollider(0,550,800,50,  {collision_class = "Danger"})
 
- player.speed = 240
- player:setFixedRotation(true)
+ require("player")
 
- platform:setType("static")
  dangerZone:setType("static")
+
+ loadMap()
 end
 
 function love.update(dt)
   world:update(dt)
-  if player.body then
-    local px, py = player:getPosition()
-    if love.keyboard.isDown("d") then
-      player:setX(px + player.speed * dt)
-    end
-    if love.keyboard.isDown("a") then
-      player:setX(px - player.speed *dt)
-    end
-
-    if player:enter("Danger") then
-      player:destroy()
-    end
-  end
+  gameMap:update(dt)
+  updatePlayer(dt)
+  
+  local px, py = player:getPosition()
+  cam:lookAt(px,love.graphics.getHeight()/2)
 end
 
 function love.draw()
-  world:draw()
+  cam:attach()
+    gameMap:drawLayer(gameMap.layers["Tile Layer 1"])
+    world:draw()
+    drawPlayer()
+  cam:detach()
+  -- HUD
 end
 
-function love.keypressed(key)
-  if key == "w" then
-    platforms = world:queryRectangleArea(player:getX() -40 ,player:getY() +40,80,2,{"Platform"})
-    if #platforms >0 then
-      player:applyLinearImpulse(0,-5000)
-    end
+function spawnPlatform(x,y,w,h)
+  if w>0 and h>0 then
+   local platform = world:newRectangleCollider(x,y,w,h, {collision_class = "Platform"})
+   platform:setType("static")
+   table.insert(platforms,platform)
   end
 end
 
 function love.mousepressed(x,y,button)
   if button == 1 then
     local colliders = world:queryCircleArea(x,y,200)
+  end
+end
+
+
+function loadMap()
+  gameMap = sti("maps/level1.lua")
+  for i, obj in pairs(gameMap.layers["Platforms"].objects) do
+    spawnPlatform(obj.x,obj.y,obj.width,obj.height)
   end
 end
