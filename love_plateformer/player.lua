@@ -61,7 +61,7 @@ function love.keypressed(key)
   if key == "w" then
     -- rectagle is in the center 
     if player.grounded then
-      player:applyLinearImpulse(0,-3000)
+      player:applyLinearImpulse(0,-4000)
     end
   end
 end
